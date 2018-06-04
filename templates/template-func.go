@@ -1,8 +1,8 @@
 package letgo
 
 func Sample() int {
-	if mymock.Mock().IsMockado("fmt.Printf") {
-		return mymock.Mock().Fn("fmt.Printf").(MockPrintf)(format, a...)
+	letitgoLabel := "fmt.Printf"
+	if mymock.Mock(letitgoLabel).IsMockado() {
+		return mymock.Mock().Fn(letitgoLabel).(func(args int) (bool))()
 	}
-	return 0
 }

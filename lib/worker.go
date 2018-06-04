@@ -29,24 +29,25 @@ func FoundHandlablePackages(set *token.FileSet, baseDir string, pkgPathList []st
 	return
 }
 
-func LoadTemplateFunc(set *token.FileSet, baseDir string) *ast.IfStmt {
+func LoadTemplateFunc(set *token.FileSet, baseDir string) []ast.Stmt {
 	node, err := parser.ParseFile(set, filepath.Join(baseDir, "templates/template-func.go"), nil, parser.ParseComments)
 	if err != nil {
 		log.Fatal(err)
 	}
-	var templateIf *ast.IfStmt
+	var templateIf *ast.FuncDecl
 
 	ast.Inspect(node, func(n ast.Node) bool {
 		// handle function declarations without documentation
-		ifSample, ok := n.(*ast.IfStmt)
+		ifSample, ok := n.(*ast.FuncDecl)
 		if ok {
 			templateIf = ifSample
 			return false
 		}
 		return true
 	})
-	return templateIf
+	return templateIf.Body.List
 }
+
 func loadTemplateStruct(set *token.FileSet, baseDir string) *ast.File {
 	node, err := parser.ParseFile(set, filepath.Join(baseDir, "templates/template-struct.go"), nil, parser.ParseComments)
 	if err != nil {
@@ -64,6 +65,13 @@ func loadTemplateStruct(set *token.FileSet, baseDir string) *ast.File {
 	//	return true
 	//})
 	//return templateType
+}
+func LoadTemplateMock(set *token.FileSet, baseDir string) *ast.File {
+	node, err := parser.ParseFile(set, filepath.Join(baseDir, "templates/template-struct.go"), nil, parser.ParseComments)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return node
 }
 //func loadTemplateStruct(set *token.FileSet, baseDir string) *ast.TypeSpec {
 //	node, err := parser.ParseFile(set, filepath.Join(baseDir, "templates/template-struct.go"), nil, parser.ParseComments)

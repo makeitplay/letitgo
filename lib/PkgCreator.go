@@ -20,6 +20,7 @@ type PkgCreator struct {
 	OriginalPkg *ast.Package
 	fs *token.FileSet
 	fakeStruct  *ast.File
+	mockFile  *ast.File
 }
 
 func (c *PkgCreator) Init(fs *token.FileSet) error {
@@ -55,6 +56,7 @@ func (c *PkgCreator) MockUp() error {
 			if err != nil {
 				return err
 			}
+			//c.createMock(node)
 			c.createStruct(node)
 			c.SaveStruct(node)
 			//WriteIfStm(node, fileName)
@@ -66,7 +68,7 @@ func (c *PkgCreator) MockUp() error {
 	return nil
 }
 func (c *PkgCreator) createStruct(file *ast.File) {
-	templateIf := LoadTemplateFunc(c.fs, c.BaseDir)
+	templateCond := LoadTemplateFunc(c.fs, c.BaseDir)
 	c.fakeStruct = loadTemplateStruct(c.fs, c.BaseDir)
 	//fmt.Printf("exported function %s")
 	//sair := false
@@ -111,8 +113,9 @@ func (c *PkgCreator) createStruct(file *ast.File) {
 
 				c.writeFieldFakeStrc(fld)
 
-				//sair = true
-				fn.Body.List = append([]ast.Stmt{templateIf}, fn.Body.List...)
+				c.customizeCallback(fn, templateCond)
+
+				//fn.Body.List = append([]ast.Stmt{templateCond}, fn.Body.List...)
 			}
 		}
 		return true
@@ -121,6 +124,63 @@ func (c *PkgCreator) createStruct(file *ast.File) {
 		c.includeImport(file)
 	}
 }
+
+//func (c *PkgCreator) createMock(file *ast.File) {
+//	c.mockFile = LoadTemplateMock(c.fs, c.BaseDir)
+//
+//	//fmt.Printf("exported function %s")
+//	//sair := false
+//
+//	//ast.Inspect(file, func(n ast.Node) bool {
+//	//	mprt, ok := n.(*ast.ImportSpec)
+//	//	if ok {
+//	//		if mprt.Path != nil {
+//	//			c.fakeStruct.Imports = append(c.fakeStruct.Imports, mprt)
+//	//
+//	//			importC := &ast.GenDecl{
+//	//				TokPos: c.fakeStruct.Package,
+//	//				Tok:    token.IMPORT,
+//	//				Specs:  []ast.Spec{&ast.ImportSpec{Path: &ast.BasicLit{Kind: token.STRING, Value:  mprt.Path.Value}}},
+//	//			}
+//	//			c.fakeStruct.Decls = append([]ast.Decl{importC}, c.fakeStruct.Decls...)
+//	//
+//	//
+//	//			fmt.Printf("IMPORTING: %s\n", mprt.Path.Value)
+//	//		}
+//	//	}
+//	//	return true
+//	//})
+//	foundExported := false
+//	ast.Inspect(file, func(n ast.Node) bool {
+//		// handle function declarations without documentation
+//		fn, ok := n.(*ast.FuncDecl)
+//		if ok {
+//			if fn.Name.IsExported() && fn.Recv == nil {
+//				foundExported = true
+//
+//				//line := c.fs.Position(fn.Pos()).Line
+//				//filenm := fn.Name.Name
+//				//declaretion := readStatement(fileName, fn.Pos(), fn.End())
+//				//fmt.Printf("exported function %s" +
+//				//	"found on line %d: \n\t%s\n", declaretion, line, filenm)
+//
+//				fld := &ast.Field{}
+//				fld.Type = fn.Type
+//				fld.Names = []*ast.Ident{}
+//				fld.Names = append(fld.Names, fn.Name)
+//
+//				c.writeFieldFakeStrc(fld)
+//
+//				//sair = true
+//				fn.Body.List = append([]ast.Stmt{templateIf}, fn.Body.List...)
+//			}
+//		}
+//		return true
+//	})
+//	if foundExported {
+//		c.includeImport(file)
+//	}
+//}
 
 func (c *PkgCreator) writeFieldFakeStrc(field *ast.Field) {
 	ast.Inspect(c.fakeStruct, func(n ast.Node) bool {
@@ -168,6 +228,54 @@ func (c *PkgCreator) includeImport(file *ast.File) {
 		Specs:  []ast.Spec{&ast.ImportSpec{Path: &ast.BasicLit{Kind: token.STRING, Value: "letgo"}}},
 	}
 	file.Decls = append([]ast.Decl{strDelc}, file.Decls...)
+}
+func (c *PkgCreator) customizeCallback(decl *ast.FuncDecl, stmt []ast.Stmt) {
+	ast.Inspect(stmt[0], func(n ast.Node) bool {
+		tipoFun, ok := n.(*ast.BasicLit)
+		if ok {
+			tipoFun.Value = fmt.Sprintf("\"PkgName%s\"", decl.Name.Name)
+		}
+		return true
+	})
+	var lasCall *ast.CallExpr
+	lasCall = nil
+	ast.Inspect(stmt[1], func(n ast.Node) bool {
+		tipoFun, ok := n.(*ast.TypeAssertExpr)
+		if ok {
+			fmt.Printf("Pelo menos achou esa mersa")
+			tipoFun.Type = decl.Type
+		}
+		callF, ok := n.(*ast.CallExpr)
+		if ok {
+			if lasCall == nil {
+				lasCall = callF
+			} else {
+				lasCall = callF
+				return false
+			}
+		}
+		return true
+	})
+
+	fmt.Printf("Pelo menos achou esa mersa\n")
+
+
+
+
+	Parou quando ia:
+		1. Retirar quebra de linha antes do primeiro parametor
+		2. Corrigir passagem de parametros em spread
+
+
+
+
+
+	lasCall.Args = []ast.Expr{}
+	for _, filds := range decl.Type.Params.List {
+		lasCall.Args = append(lasCall.Args, filds.Names[0])
+	}
+
+	decl.Body.List = append(stmt, decl.Body.List...)
 }
 
 
