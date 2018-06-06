@@ -44,6 +44,13 @@ func main()  {
 }
 func trainning() {
 	var fs = token.NewFileSet()
+	templateCond := lib.LoadTemplateFunc(fs, base)
+	manipulate, _ := parser.ParseFile(fs, filepath.Join(base, "lixo.go"), nil, parser.ParseComments)
+	pkgCreator := new(lib.PkgCreator)
+	pkgCreator.Path =  "lixo.go"
+	pkgCreator.BaseDir = base
+
+	pkgCreator.Init(fs)
 
 	templateIf, _ := parser.ParseFile(fs, filepath.Join(base, "templates/template-func.go"), nil, parser.Trace)
 	//templateIf := lib.LoadTemplateFunc(fs, base)
@@ -51,7 +58,7 @@ func trainning() {
 	ast.Inspect(templateIf, func(n ast.Node) bool {
 		// handle function declarations without documentation
 
-		fmt.Printf("Achou: %T -> %v\n", n, n)
+		//fmt.Printf("Achou: %T -> %v\n", n, n)
 		tipoFun, ok := n.(*ast.BasicLit)
 		if ok {
 			tipoFun.Value = "\"qualquer label\""
@@ -85,6 +92,17 @@ func trainning() {
 		//}
 		return true
 	})
+	ast.Inspect(manipulate, func(n ast.Node) bool {
+		// handle function declarations without documentation
+
+		fmt.Printf("Achou: %T -> %v\n", n, n)
+		tipoFun, ok := n.(*ast.FuncDecl)
+		if ok {
+			pkgCreator.CustomizeCallback(tipoFun, templateCond)
+		}
+		return true
+	})
+
 
 	f2, _ := os.Create("test.go")
 

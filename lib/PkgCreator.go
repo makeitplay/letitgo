@@ -29,13 +29,14 @@ func (c *PkgCreator) Init(fs *token.FileSet) error {
 	if err != nil {
 		return err
 	}
+	fmt.Printf("--- Pkgs: %d ----\n", len(pkgs))
 	for pkgName, pkg := range pkgs {
 		ast.PackageExports(pkg)
 		c.Name = pkgName
 		c.OriginalPkg = pkg
 		c.fs = fs
 		//upgradePkgFiles(pkg)
-		//fmt.Printf("--- Pkg %s%s ----\n", lib,pkgName)
+		fmt.Printf("--- Pkg %s :%d ----\n", pkgName, len(c.OriginalPkg.Files))
 	}
 	return nil
 }
@@ -68,7 +69,7 @@ func (c *PkgCreator) MockUp() error {
 	return nil
 }
 func (c *PkgCreator) createStruct(file *ast.File) {
-	templateCond := LoadTemplateFunc(c.fs, c.BaseDir)
+
 	c.fakeStruct = loadTemplateStruct(c.fs, c.BaseDir)
 	//fmt.Printf("exported function %s")
 	//sair := false
@@ -99,6 +100,7 @@ func (c *PkgCreator) createStruct(file *ast.File) {
 		if ok {
 			if fn.Name.IsExported() && fn.Recv == nil {
 				foundExported = true
+				templateCond := LoadTemplateFunc(c.fs, c.BaseDir)
 
 				//line := c.fs.Position(fn.Pos()).Line
 				//filenm := fn.Name.Name
@@ -113,7 +115,7 @@ func (c *PkgCreator) createStruct(file *ast.File) {
 
 				c.writeFieldFakeStrc(fld)
 
-				c.customizeCallback(fn, templateCond)
+				c.CustomizeCallback(fn, templateCond)
 
 				//fn.Body.List = append([]ast.Stmt{templateCond}, fn.Body.List...)
 			}
@@ -229,7 +231,7 @@ func (c *PkgCreator) includeImport(file *ast.File) {
 	}
 	file.Decls = append([]ast.Decl{strDelc}, file.Decls...)
 }
-func (c *PkgCreator) customizeCallback(decl *ast.FuncDecl, stmt []ast.Stmt) {
+func (c *PkgCreator) CustomizeCallback(decl *ast.FuncDecl, stmt []ast.Stmt) {
 	ast.Inspect(stmt[0], func(n ast.Node) bool {
 		tipoFun, ok := n.(*ast.BasicLit)
 		if ok {
@@ -238,18 +240,18 @@ func (c *PkgCreator) customizeCallback(decl *ast.FuncDecl, stmt []ast.Stmt) {
 		return true
 	})
 	var lasCall *ast.CallExpr
+	callSeqNumber := 3
+	counterCallers := 0
 	lasCall = nil
 	ast.Inspect(stmt[1], func(n ast.Node) bool {
 		tipoFun, ok := n.(*ast.TypeAssertExpr)
 		if ok {
-			fmt.Printf("Pelo menos achou esa mersa")
 			tipoFun.Type = decl.Type
 		}
 		callF, ok := n.(*ast.CallExpr)
 		if ok {
-			if lasCall == nil {
-				lasCall = callF
-			} else {
+			counterCallers++
+			if counterCallers == callSeqNumber {
 				lasCall = callF
 				return false
 			}
@@ -257,22 +259,21 @@ func (c *PkgCreator) customizeCallback(decl *ast.FuncDecl, stmt []ast.Stmt) {
 		return true
 	})
 
-	fmt.Printf("Pelo menos achou esa mersa\n")
-
-
-
-
-	Parou quando ia:
-		1. Retirar quebra de linha antes do primeiro parametor
-		2. Corrigir passagem de parametros em spread
-
-
-
-
-
+	//fmt.Printf("Pelo menos achou esa mersa\n")
+	//ret, _ := parser.ParseExpr("...")
 	lasCall.Args = []ast.Expr{}
 	for _, filds := range decl.Type.Params.List {
 		lasCall.Args = append(lasCall.Args, filds.Names[0])
+		for ind, val := range filds.Names {
+			if isEl, ok := filds.Type.(*ast.Ellipsis); ok {
+				lasCall.Ellipsis = filds.Pos()
+				fmt.Printf("INdex %d: %s... %v\n", ind, val.Name, isEl.Elt)
+				//lasCall.Args = append(lasCall.Args, ret)
+			} else {
+				fmt.Printf("INdex %d: %s\n", ind, val.Name)
+			}
+		}
+
 	}
 
 	decl.Body.List = append(stmt, decl.Body.List...)
