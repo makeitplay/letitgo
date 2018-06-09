@@ -4,23 +4,26 @@ import (
 	"mymock"
 )
 
-type mockador struct {
-	mymock mymock.Ju
+type Mockador struct {
+	//mymock mymock.Breakin
+
+	//gerado
 	Fmt *FmtMirror
 }
-func (m *mockador)Init()  {
-	mymock.Mock().Mocado = true
-	mymock.Mock().Mocks =  map[string]interface{}{}
 
-
-	m.Fmt = new(FmtMirror)
-}
-
-func NewMocador() *mockador {
-	m := new(mockador)
+func NewMocador() *Mockador {
+	m := new(Mockador)
 	m.Init()
 	return m
 }
+
+func (m *Mockador)Init()  {
+	mymock.Mock().Mocks =  map[string]interface{}{}
+
+	//gerado
+	m.Fmt = new(FmtMirror)
+}
+
 
 
 

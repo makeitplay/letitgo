@@ -54,17 +54,13 @@ func loadTemplateStruct(set *token.FileSet, baseDir string) *ast.File {
 		log.Fatal(err)
 	}
 	return node
-	//var templateType *ast.TypeSpec
-	//ast.Inspect(node, func(n ast.Node) bool {
-	//	// handle function declarations without documentation
-	//	strSample, ok := n.(*ast.TypeSpec)
-	//	if ok {
-	//		templateType = strSample
-	//		return false
-	//	}
-	//	return true
-	//})
-	//return templateType
+}
+func loadTemplateMirror(set *token.FileSet, baseDir string) *ast.File {
+	node, err := parser.ParseFile(set, filepath.Join(baseDir, "templates/template-mirror.go"), nil, parser.ParseComments)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return node
 }
 func LoadTemplateMock(set *token.FileSet, baseDir string) *ast.File {
 	node, err := parser.ParseFile(set, filepath.Join(baseDir, "templates/template-struct.go"), nil, parser.ParseComments)

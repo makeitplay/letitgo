@@ -20,6 +20,7 @@ type PkgCreator struct {
 	OriginalPkg *ast.Package
 	fs *token.FileSet
 	fakeStruct  *ast.File
+	pkgMirror  *ast.File
 	mockFile  *ast.File
 }
 
@@ -29,14 +30,11 @@ func (c *PkgCreator) Init(fs *token.FileSet) error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("--- Pkgs: %d ----\n", len(pkgs))
 	for pkgName, pkg := range pkgs {
 		ast.PackageExports(pkg)
 		c.Name = pkgName
 		c.OriginalPkg = pkg
 		c.fs = fs
-		//upgradePkgFiles(pkg)
-		fmt.Printf("--- Pkg %s :%d ----\n", pkgName, len(c.OriginalPkg.Files))
 	}
 	return nil
 }
@@ -58,8 +56,9 @@ func (c *PkgCreator) MockUp() error {
 				return err
 			}
 			//c.createMock(node)
-			c.createStruct(node)
+			c.processFile(node)
 			c.SaveStruct(node)
+			c.SaveMirror()
 			//WriteIfStm(node, fileName)
 
 			//totalParsed++
@@ -68,9 +67,10 @@ func (c *PkgCreator) MockUp() error {
 	}
 	return nil
 }
-func (c *PkgCreator) createStruct(file *ast.File) {
+func (c *PkgCreator) processFile(file *ast.File) {
 
 	c.fakeStruct = loadTemplateStruct(c.fs, c.BaseDir)
+	c.pkgMirror = loadTemplateMirror(c.fs, c.BaseDir)
 	//fmt.Printf("exported function %s")
 	//sair := false
 
@@ -113,7 +113,8 @@ func (c *PkgCreator) createStruct(file *ast.File) {
 				fld.Names = []*ast.Ident{}
 				fld.Names = append(fld.Names, fn.Name)
 
-				c.writeFieldFakeStrc(fld)
+				//c.writeFieldFakeStrc(fld)
+				c.writeFuncInMirror(file, fn)
 
 				c.CustomizeCallback(fn, templateCond)
 
@@ -193,6 +194,39 @@ func (c *PkgCreator) writeFieldFakeStrc(field *ast.Field) {
 		return true
 	})
 }
+func (c *PkgCreator) writeFuncInMirror(file *ast.File, decl *ast.FuncDecl) (f *ast.File) {
+	node, err := parser.ParseFile(c.fs, filepath.Join(c.BaseDir, "templates/template-method.go"), nil, parser.ParseComments)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fielListIndex := 0
+	ast.Inspect(node, func(n ast.Node) bool {
+		args, ok := n.(*ast.FieldList)
+		if ok {
+			if fielListIndex == 0 {
+				args.List[0].Names[0].Name = "letitgo"
+				args.List[0].Type = ast.NewIdent("*" + c.FInalStructName())
+				fielListIndex++
+			} else if fielListIndex == 2 {
+				args.List = decl.Type.Params.List
+				fielListIndex++
+			} else {
+				fielListIndex++
+			}
+		}
+		return true
+	})
+
+	ast.Inspect(node, func(n ast.Node) bool {
+		funcModifield, ok := n.(*ast.FuncDecl)
+		if ok {
+			funcModifield.Name = decl.Name
+			file.Decls = append(file.Decls, funcModifield)
+		}
+		return true
+	})
+	return file
+}
 func (c *PkgCreator) SaveStruct(file *ast.File) {
 	ast.Inspect(c.fakeStruct, func(n ast.Node) bool {
 		strSample, ok := n.(*ast.TypeSpec)
@@ -216,8 +250,36 @@ func (c *PkgCreator) SaveStruct(file *ast.File) {
 		log.Fatal(err)
 	}
 }
+
+func (c *PkgCreator) SaveMirror() {
+	ast.Inspect(c.pkgMirror, func(n ast.Node) bool {
+		strSample, ok := n.(*ast.TypeSpec)
+		if ok {
+			strSample.Name.Name = c.FInalStructName()
+		}
+		return true
+	})
+
+	c.pkgMirror.Name.Name = c.Name
+
+	f2, err := os.Create(c.pathToMirrorFile())
+
+	if err != nil {
+		log.Fatal("failed on creating mirror file:", err)
+	}
+
+	defer f2.Close()
+
+	if err := printer.Fprint(f2, c.fs,c.pkgMirror); err != nil {
+		log.Fatal("Failed on saving mirror file", err)
+	}
+}
 func (c *PkgCreator) pathToFakeFile() string {
 	return fmt.Sprintf(filepath.Join(c.BaseDir, "fake_env/go/src/letgo/%s.lixo"), c.Name)
+}
+func (c *PkgCreator) pathToMirrorFile() string {
+	return fmt.Sprintf(filepath.Join(c.BaseDir, "fake_env/go/src/letgo/mirror_%s.nogo"), c.Name)
+	//return fmt.Sprintf(filepath.Join(c.BaseDir,c.Path, "%s_mirror.go"), c.Name)
 }
 func (c *PkgCreator) FInalStructName() string {
 	return fmt.Sprintf("Mck%s", strings.Title(c.Name))
@@ -264,20 +326,17 @@ func (c *PkgCreator) CustomizeCallback(decl *ast.FuncDecl, stmt []ast.Stmt) {
 	lasCall.Args = []ast.Expr{}
 	for _, filds := range decl.Type.Params.List {
 		lasCall.Args = append(lasCall.Args, filds.Names[0])
-		for ind, val := range filds.Names {
-			if isEl, ok := filds.Type.(*ast.Ellipsis); ok {
+			if _, ok := filds.Type.(*ast.Ellipsis); ok {
 				lasCall.Ellipsis = filds.Pos()
-				fmt.Printf("INdex %d: %s... %v\n", ind, val.Name, isEl.Elt)
-				//lasCall.Args = append(lasCall.Args, ret)
-			} else {
-				fmt.Printf("INdex %d: %s\n", ind, val.Name)
 			}
-		}
-
 	}
 
 	decl.Body.List = append(stmt, decl.Body.List...)
 }
+
+
+
+
 
 
 

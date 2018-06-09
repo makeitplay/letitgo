@@ -12,6 +12,7 @@ import (
 	//"letgo/lib"
 	"go/parser"
 	"letgo/lib"
+	"original/go/src/sort"
 )
 
 const base = "/vagrant/go/src/letgo"
@@ -31,9 +32,11 @@ func main()  {
 		panic(err)
 	}
 	var fs = token.NewFileSet()
+	sort.Strings(pkgPathList)
 	pkgList := lib.FoundHandlablePackages(fs, base, pkgPathList)
 	fmt.Printf("%d Packages found.\n", len(pkgList))
 	for _, pkgCreator := range pkgList {
+		fmt.Printf("Instaling %s\n", pkgCreator.Path)
 		err = pkgCreator.MockUp()
 		if err != nil {
 			panic(err)
